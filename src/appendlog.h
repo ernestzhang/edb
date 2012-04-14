@@ -15,7 +15,11 @@ enum{
    ERROR_WRITE_FILE_ERROR ,
    ERROR_TOO_LARGE_NODE ,
    ERROR_OPEN_LOG_FILE ,
+   ERROR_FSTAT_LOG_FILE,
    ERROR_READ_LOG_FILE,
+   ERROR_LOG_FORMAT ,
+    ERROR_CREATE_NEW_NODE,
+    ERROR_ALLOC_TEMP_MEM ,
 };
 
 enum{
@@ -38,10 +42,16 @@ typedef struct _StLogRecordNode
     char          cType ;
 }StLogRecordNode;
 
+typedef struct _StListNode
+{
+    StLogNode *pNode ;
+    struct _StListNode *pNext ;
+}StListNode;
+
 typedef struct StLogNodeList
 {
-	StLogNode *pNode ;
-	StLogNodeList *pNext ;
+	StListNode *pHead ;
+    StListNode *pTail ;
 }_StLogNodeList;
 
 typedef struct _StLogFile
@@ -50,9 +60,10 @@ typedef struct _StLogFile
     int iFd ;
     unsigned long ulCurSize ;
     char cWBuf[BLOCK_SIZE] ; 
-    unsigned int uiCurWBufSize ;
+    unsigned long ulCurWBufSize ;
 	char *pTmpNodeBuf ;
-	StLogNodeList *pNodeList ;
+    unsigned long ulTmpBufSize ;
+    StLogNodeList stNodeList ;
 }StLogFile;
 int CreateLogFile(const char *sFile , StLogFile *pLogFile);
 #endif
