@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <string.h>
-
+#include <sys/stat.h>
+#include <stdlib.h>
 #ifndef _WIN32
 	#include <unistd.h>
 #endif
@@ -9,6 +10,7 @@
 
 int CreateLogFile(const char *sFile , StLogFile *pLogFile)
 {
+    memset(pLogFile , 0 , sizeof(StLogFile));
 #ifdef __APPLE__
         int iFd = open(sFile , O_CREAT|O_EXCL|O_APPEND);
 #else
@@ -19,9 +21,9 @@ int CreateLogFile(const char *sFile , StLogFile *pLogFile)
         return ERROR_CREATE_FILE_ERROR ;
     pLogFile->iFd = iFd ;
     strncpy(pLogFile->sFileName , sFile , sizeof(pLogFile->sFileName)-1);
-    pLogFile->ulCurSize = 0 ;
-    memset(pLogFile->cWBuf , 0 , sizeof(pLogFile->cWBuf));
 	pLogFile->pTmpNodeBuf = (char *)malloc(MAX_NODE_SIZE);
+    if(pLogFile->pTmpNodeBuf == NULL)
+        return  ERROR_ALLOC_TEMP_MEM ;
     return 0 ;
 }
 
@@ -46,13 +48,13 @@ int WriteN(int iFd , char *cBuf , unsigned int uiSize , unsigned int *uiTotal)
 
 int AppendLog(StLogFile *pLogFile)
 {
-	if(pLogFile->uiCurWBufSize >= BLOCK_SIZE)
+	if(pLogFile->ulCurWBufSize >= BLOCK_SIZE)
     {
         unsigned int uiWr = 0 ;
-        int iRet = WriteN(pLogFile->iFd , pLogFile->cWBuf , pLogFile->uiCurWBufSize  , &uiWr);
+        int iRet = WriteN(pLogFile->iFd , pLogFile->cWBuf , pLogFile->ulCurWBufSize  , &uiWr);
         if(iRet == 0)
         {
-            pLogFile->uiCurWBufSize = 0 ;
+            pLogFile->ulCurWBufSize = 0 ;
             pLogFile->ulCurSize += uiWr ;
         }
         else
@@ -63,10 +65,12 @@ int AppendLog(StLogFile *pLogFile)
     }
 }
 
-unsigned int uiGenCheckSum(char *pData , unsigned int uiSize)
+unsigned int GenCheckSum(void *pData , unsigned int uiSize)
 {
 	return 0 ;
 }
+
+
 
 void PackKvNode(char *pBuf , StLogNode *pNode)
 {
@@ -79,31 +83,31 @@ void PackKvNode(char *pBuf , StLogNode *pNode)
 
 void PackLogData(StLogFile *pLogFile , char *pData , unsigned int uiSize , char cType)
 {
-    StLogRecordNode *pNode =(StLogRecordNode *)(pLogFile->cWBuf + pLogFile->uiCurWBufSize) ;
+    StLogRecordNode *pNode =(StLogRecordNode *)(pLogFile->cWBuf + pLogFile->ulCurWBufSize) ;
     pNode->usRecordSize = uiSize ;
     pNode->cType       = cType ;
-	pLogFile->uiCurWBufSize += sizeof(StLogRecordNode) + uiSize ;
-	pNode->uiCheckSum  = uiGenCheckSum(pData , uiSize);
-	pLogFile->uiCurWBufSize += sizeof(StLogRecordNode);
+	pLogFile->ulCurWBufSize += sizeof(StLogRecordNode) + uiSize ;
+	pNode->uiCheckSum  = GenCheckSum(pData , uiSize);
+	pLogFile->ulCurWBufSize += sizeof(StLogRecordNode);
 	
 	if(cType == FULL)//当为FULL的时候，Node已经在缓冲区之内了，减少内存copy
 	{
-		pLogFile->uiCurWBufSize += uiSize ;
-		if(BLOCK_SIZE - pLogFile->uiCurWBufSize <= sizeof(StLogRecordNode))//如果剩下的空间小于一个包头，则直接跳过
+		pLogFile->ulCurWBufSize += uiSize ;
+		if(BLOCK_SIZE - pLogFile->ulCurWBufSize <= sizeof(StLogRecordNode))//如果剩下的空间小于一个包头，则直接跳过
 		{
-			pLogFile->uiCurWBufSize = BLOCK_SIZE ;
+			pLogFile->ulCurWBufSize = BLOCK_SIZE ;
 		}
 	}
 	else
 	{
-		memcpy(pLogFile->cWBuf + pLogFile->uiCurWBufSize , pData ,uiSize);
+		memcpy(pLogFile->cWBuf + pLogFile->ulCurWBufSize , pData ,uiSize);
 	}
 }
 
 
 int AppendRecord(StLogFile *pLogFile , StLogNode*pNode)
 {
-	unsigned int  ulLeft = BLOCK_SIZE - pLogFile->uiCurWBufSize ;
+	unsigned int  ulLeft = BLOCK_SIZE - pLogFile->ulCurWBufSize ;
     unsigned int  uiRealNodeSize = sizeof(unsigned int) * 2 + pNode->uiKeySize + pNode->uiValSize ;
     unsigned int  uiMinSize = uiRealNodeSize+sizeof(StLogRecordNode) ;
 	if(pNode->uiKeySize + pNode->uiValSize > MAX_NODE_SIZE-128)//留足空间，不要挑战边界
@@ -113,7 +117,7 @@ int AppendRecord(StLogFile *pLogFile , StLogNode*pNode)
     if( uiMinSize <= ulLeft)//FULL
     {
 		//暂不区分大、小端模式存储
-		PackKvNode(pLogFile->cWBuf + pLogFile->uiCurWBufSize + sizeof(StLogRecordNode) , pNode);
+		PackKvNode(pLogFile->cWBuf + pLogFile->ulCurWBufSize + sizeof(StLogRecordNode) , pNode);
 		PackLogData(pLogFile , NULL , uiRealNodeSize , FULL);
 		AppendLog(pLogFile);
     }
@@ -121,7 +125,7 @@ int AppendRecord(StLogFile *pLogFile , StLogNode*pNode)
     {
 		int	 cType = FIRST ;
 		char *pTmpBuf = pLogFile->pTmpNodeBuf ;
-		unsigned int i = BLOCK_SIZE - pLogFile->uiCurWBufSize - sizeof(StLogRecordNode);
+		unsigned int i = BLOCK_SIZE - pLogFile->ulCurWBufSize - sizeof(StLogRecordNode);
 		unsigned int iCurPack = 0 ;
 		PackKvNode(pTmpBuf , pNode);
 		while(iCurPack < uiRealNodeSize)
@@ -161,19 +165,141 @@ long ReadN(int iFd , char *cBuf ,  long lSize)
 	return lTotal ;
 }
 
+int IsUnValidDataRecord(StLogRecordNode *pNode , unsigned long ulSize)
+{
+    if(pNode->usRecordSize == 0 || pNode->usRecordSize > BLOCK_SIZE - sizeof(StLogRecordNode) ||pNode->usRecordSize  + sizeof(StLogRecordNode) != ulSize)
+    {
+        return -1 ;
+    }
+    if(pNode->uiCheckSum != GenCheckSum(pNode + 1 , pNode->usRecordSize))
+    {
+        return -1 ;
+    }
+    return 0 ;
+}
+
+StLogNode *CreateNewNode(StLogFile *pLogFile , StLogNode *pData)
+{
+    StLogNode *pNode = (StLogNode *)malloc(sizeof(StLogNode));
+    if(pNode != NULL)
+    {
+        StListNode *pListNode ;
+        pNode->sKey = (char *)malloc(pData->uiKeySize);
+        pNode->sVal = (char *)malloc(pData->uiValSize);
+        if(pNode->sKey == NULL || pNode->sVal == NULL)
+        {
+            free(pNode);
+            return NULL ;
+        }
+        memcpy(pNode->sKey , pData->sKey , pData->uiKeySize);
+        memcpy(pNode->sVal , pData->sVal , pData->uiValSize);
+        pNode->uiKeySize = pData->uiKeySize ;
+        pNode->uiValSize = pData->uiValSize ;
+        
+        pListNode = (StListNode *)malloc(sizeof(StListNode));
+        if(pListNode == NULL)
+        {
+            free(pNode);
+            return NULL ;
+        }
+        pListNode->pNode = pNode ;
+        pListNode->pNext = NULL ;
+        if(pLogFile->stNodeList.pHead == NULL)
+        {
+            pLogFile->stNodeList.pHead = pListNode ;
+            pLogFile->stNodeList.pHead->pNext = NULL ;
+            pLogFile->stNodeList.pTail = pListNode ;
+        }
+        else
+        {
+            pLogFile->stNodeList.pTail->pNext = pListNode ;
+            pLogFile->stNodeList.pTail = pListNode ;
+        }
+    }
+    return pNode ;
+}
+
+int ParseLogData(StLogFile *pLogFile , void *pData , unsigned long ulSize)
+{
+    StLogNode stData , *pNode ;
+    stData.uiKeySize =  *((unsigned short *)pData);
+    stData.sKey = (char *)pData + sizeof(unsigned short) ;
+    stData.uiValSize =  *((unsigned short *)((char *)pData + sizeof(short) + stData.uiKeySize));
+    stData.sVal = (char *)pData + sizeof(short) + stData.uiKeySize + sizeof(short);
+    pNode = CreateNewNode(pLogFile , &stData);
+    if(pNode == NULL)
+        return ERROR_CREATE_NEW_NODE ;
+    pLogFile->pTmpNodeBuf -= (ulSize + sizeof(StLogRecordNode));
+    return  0;
+}
+
+//处理本次读取的block，并放入tmp buf 中
+int ProcessLogFile(StLogFile*pLogFile)
+{
+    StLogRecordNode *pNode ;
+    unsigned long ulCurSize = 0 ;//当前处理的量
+    if(pLogFile->ulCurSize <= sizeof(StLogRecordNode))
+        return ERROR_LOG_FORMAT ;
+    while (ulCurSize < pLogFile->ulCurWBufSize) 
+    {
+        
+    
+        pNode = (StLogRecordNode *)pLogFile->cWBuf + ulCurSize;
+        if(IsUnValidDataRecord(pNode , pLogFile->ulCurWBufSize))
+        {
+            return ERROR_LOG_FORMAT ;
+        }
+    
+        if(pNode->cType == FULL)
+        {
+            if(pLogFile->ulTmpBufSize > 0 )
+                return  ERROR_LOG_FORMAT ;
+
+            ParseLogData(pLogFile , pNode + 1 , pNode->usRecordSize);
+        }
+        else if(pNode->cType == FIRST)
+        {
+            if(pLogFile->ulTmpBufSize > 0)
+                return ERROR_LOG_FORMAT ;
+            memcpy(pLogFile->pTmpNodeBuf , pNode + 1 , pNode->usRecordSize);
+            pLogFile->ulTmpBufSize += pNode->usRecordSize ;
+        }
+        else if(pNode->cType == MIDDLE)
+        { 
+            if(pLogFile->ulTmpBufSize == 0)
+                return  ERROR_LOG_FORMAT ;
+            memcpy(pLogFile->pTmpNodeBuf + pLogFile->ulTmpBufSize , pNode + 1 , pNode->usRecordSize);
+            pLogFile->ulTmpBufSize += pNode->usRecordSize ;
+        }
+        else if(pNode->cType == LAST)
+        {
+            if(pLogFile->ulTmpBufSize == 0)
+                return  ERROR_LOG_FORMAT ;
+            memcpy(pLogFile->pTmpNodeBuf + pLogFile->ulTmpBufSize , pNode + 1 , pNode->usRecordSize);
+            pLogFile->ulTmpBufSize += pNode->usRecordSize ;
+            ParseLogData(pLogFile , pLogFile->pTmpNodeBuf , pLogFile->ulTmpBufSize);
+        }
+        ulCurSize += pNode->usRecordSize ;
+    }
+
+}
+
 int GetLogData(StLogFile *pLogFile , char *sFile)
 {
+    
+    struct stat _fst ;
 	int iFd = open(sFile , O_RDONLY);
 	long lFileSize ;
 	long lCur ;
 	if(iFd == -1)
 		return ERROR_OPEN_LOG_FILE ;
-	seek(iFd , 0 ,SEEK_END); 
-　　lFileSize = tell(iFd); 
-	seek(iFd , 0 ,SEEK_SET);
-	
-	unsigned int uiNodeSize = 0 ;
-	char cType ;
+    memset(&_fst  , 0 , sizeof(_fst));
+	if(0 != fstat(iFd , &_fst))
+    {
+        return ERROR_FSTAT_LOG_FILE ;
+    }
+    
+    lFileSize = _fst.st_size ;
 	for(lCur = 0 ; lCur <  lFileSize ;)
 	{
 		long lRead , lNeedRead;
@@ -181,26 +307,14 @@ int GetLogData(StLogFile *pLogFile , char *sFile)
 		lRead = ReadN(iFd , pLogFile->cWBuf , lNeedRead);
 		if(lRead == lNeedRead)
 		{
-			StLogRecordNode *pNode = pLogFile->cWBuf ;
-			if(pNode->cType == FULL)
-			{
-				unsigned short usPkgLen = pNode->usRecordSize ;
-				
-			}
-			else if(pNode->cType == FIRST)
-			{
-				
-			}else if(pNode->cType == SECOND)
-			{
-			
-			}
-			else if(pNode->cType == LAST)
-			{
-				
-			}
-
-
+            //处理本次所读取的数据
+            int iRet ;
+            pLogFile->ulCurWBufSize = lRead ;
 			lCur += lRead ;
+            if( (iRet=ProcessLogFile(pLogFile)) < 0 )
+            {
+                return iRet ;
+            }
 		}
 		else
 		{
@@ -221,7 +335,9 @@ int DestroyFile(StLogFile *pLogFile)
 	if(pLogFile->pTmpNodeBuf != NULL)
 	{
 		free(pLogFile->pTmpNodeBuf);
-		pLogFile->pTmpNodeBuf = 0 ;
+		pLogFile->pTmpNodeBuf = NULL ;
 	}
 	return 0 ;
 }
+
+
