@@ -66,4 +66,17 @@ typedef struct _StLogFile
     StLogNodeList stNodeList ;
 }StLogFile;
 int CreateLogFile(const char *sFile , StLogFile *pLogFile);
+long ReadN(int iFd , char *cBuf ,  long lSize);
+int WriteN(int iFd , char *cBuf , unsigned int uiSize , unsigned int *uiTotal);
+int AppendLog(StLogFile *pLogFile);
+unsigned int GenCheckSum(void *pData , unsigned int uiSize);
+void PackKvNode(char *pBuf , StLogNode *pNode);
+void PackLogData(StLogFile *pLogFile , char *pData , unsigned int uiSize , char cType);
+int AppendRecord(StLogFile *pLogFile , StLogNode*pNode);
+int IsUnValidDataRecord(StLogRecordNode *pNode , unsigned long ulSize);
+StLogNode *CreateNewNode(StLogFile *pLogFile , StLogNode *pData);
+int ParseLogData(StLogFile *pLogFile , void *pData , unsigned long ulSize);
+int ProcessLogFile(StLogFile*pLogFile);
+int GetLogData(StLogFile *pLogFile , char *sFile);
+int DestroyFile(StLogFile *pLogFile);
 #endif
