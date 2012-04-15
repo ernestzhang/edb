@@ -75,9 +75,9 @@ unsigned int GenCheckSum(void *pData , unsigned int uiSize)
 void PackKvNode(char *pBuf , StLogNode *pNode)
 {
 	unsigned int uiStep = 0 ;
-	*((unsigned int *)pBuf) = pNode->uiKeySize  ; uiStep += sizeof(unsigned int);
+	*((unsigned short *)pBuf) = pNode->uiKeySize  ; uiStep += sizeof(unsigned short);
 	memcpy(pBuf + uiStep , pNode->sKey , pNode->uiKeySize); uiStep += pNode->uiKeySize ;
-	*((unsigned int *)(pBuf + uiStep)) = pNode->uiValSize ; uiStep += sizeof(unsigned int); 
+	*((unsigned short *)(pBuf + uiStep)) = pNode->uiValSize ; uiStep += sizeof(unsigned short); 
 	memcpy(pBuf + uiStep , pNode->sVal , pNode->uiValSize);
 }
 
