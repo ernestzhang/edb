@@ -202,14 +202,15 @@ SkipList * CreateSkipList()
 
 void Destroy(SkipList *pList , SkipList_func_equal Compare  )
 {
-   int i = 0 ;
-   while(pList->pstHead[0]->pNext != NULL)
+   while(pList->pstHead[0] != NULL && pList->pstHead[0]->pNext != NULL)
   {
-	Delete(pList , pList->pstHead[0]->pNext->stValNode.sKey , Compare );
-	if(i++% 10000 == 0)
-		printf("%p\n" ,pList->pstHead[0]->pNext );
+	char * sKey = (char *)malloc(pList->pstHead[0]->pNext->stValNode.uiKeySize);
+	memcpy(sKey , pList->pstHead[0]->pNext->stValNode.sKey , pList->pstHead[0]->pNext->stValNode.uiKeySize) ;
+	Delete(pList , sKey , Compare );
+	free(sKey);
   }
-  free(pList);
+  if(pList != NULL)
+	  free(pList);
 }
 
 
