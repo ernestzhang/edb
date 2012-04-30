@@ -145,7 +145,14 @@ int Insert(SkipList*pList , StValNode *pValNode , SkipList_func_equal Compare)
 		}
 		else
 		{
-			return -1 ; //exist
+			if(iRep == 0)
+				return -1 ; //exist
+			else
+			{
+				Delete(pSkipList , pValNode , Compare );
+				Insert(pSkipList , pValNode , Compare );
+				return 0 ;
+			}
 		}
 }
 

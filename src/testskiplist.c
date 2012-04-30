@@ -54,12 +54,9 @@ int main()
 		stVal.sVal = sVal ;
 		stVal.uiValSize = strlen(sVal);
 		int iRet = Insert(pList ,&stVal , CompareFunc);
-		//printf("key:%s ret:%d\n" , sKey , iRet);
 		if(iRet == 0)
 		{
 			pArrKey[j++] = iVal ;
-			//memcpy(pArrKey[j++] , sKey ,  stVal.uiKeySize);
-			//memcpy(pArrVal[i] , sVal ,  stVal.uiValSize+1);
 			++iCurNode ;
 			memcpy(&stVal0 , &stVal ,sizeof(stVal));
 		}
@@ -72,8 +69,6 @@ int main()
 	printf("node:%d , lev:%d , cost:%d\n" , pList->iTotCnt , pList->iLevelCnt , (int)end - (int)start);
 
 
-	//i =  Insert(pList , &stVal0 , CompareFunc);
-	//printf("insert : %d\n" , i);	
 	#if 1 
 	i = 0 ;
 	iCntSpace = 0;
@@ -90,31 +85,33 @@ int main()
 			{
 				if(pStart->stValNode.sKey == NULL)
 				{
-					//printf("-inf ");
+		//			printf("-inf ");
 					pDown = pStart->pDown ;
 				}
 				else
 				{
-					//printf("%d " ,pStart->iKey);
+		//			printf("%d " , *((int *)pStart->stValNode.sKey));
 				}
 				++iCntSpace ;
 				++iLevCnt ;
 				pStart = pStart->pNext ;
 			}
-			printf("\n");
-			printf("lev:%d\n" , iLevCnt);
+		//	printf("\n");
+			//printf("lev:%d\n" , iLevCnt);
 			iLevCnt = 0 ;
 			if(pDown == NULL)
 				break ;
 			else
 			   pStart = pDown ;
 		}
-		scanf("%d" , &i);
+		
 		printf("node:%d level:%d space:%d  cost:%d\n" ,  pList->iTotCnt , pList->iLevelCnt ,iCntSpace ,   (int)(end - start));
+		break ;
 	} 
-	//scanf("%d" , &i);
+	start = time(NULL);
 	Destroy(pList , CompareFunc);
-	//scanf("%d", &i);
+	end = time(NULL);
+	printf("node:%d level:%d space:%d  cost:%d\n" ,  pList->iTotCnt , pList->iLevelCnt ,iCntSpace ,   (int)(end - start));
 	#endif
 	
 	return 0 ;
