@@ -3,6 +3,8 @@
 
 typedef struct _StSstable
 {
+	int iFd ;
+	
 }StSstable;
 
 

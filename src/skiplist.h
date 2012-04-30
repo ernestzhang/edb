@@ -27,7 +27,7 @@ typedef struct _SkipList
 typedef int (*SkipList_func_equal)(char *p1 , char *p2)  ;
 
 StNode * Find(SkipList*pList , char *sKey , StNode *pPath[], int iDel , SkipList_func_equal Compare) ;
-int Insert(SkipList*pList , StValNode *pValNode , SkipList_func_equal Compare) ;
+int Insert(SkipList*pList , StValNode *pValNode , SkipList_func_equal Compare , int iRep) ;
 int Delete(SkipList *pList , char *sKey , SkipList_func_equal Compare ) ;
 SkipList * CreateSkipList();
 void Destroy(SkipList *pList , SkipList_func_equal Compare  );
