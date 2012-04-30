@@ -101,7 +101,7 @@ int GetHeight()
 	return iLevel >= MAX_HEIGHT ? MAX_HEIGHT : (iLevel+1) ;
 }
 
-int Insert(SkipList*pList , StValNode *pValNode , SkipList_func_equal Compare)
+int Insert(SkipList*pList , StValNode *pValNode , SkipList_func_equal Compare , int iRep)
 {
 	    StNode *pPath[MAX_HEIGHT+1] = {0} ;
 		StNode *pNode = Find(pList , pValNode->sKey , pPath  , 0 , Compare) ;
@@ -149,8 +149,8 @@ int Insert(SkipList*pList , StValNode *pValNode , SkipList_func_equal Compare)
 				return -1 ; //exist
 			else
 			{
-				Delete(pSkipList , pValNode , Compare );
-				Insert(pSkipList , pValNode , Compare );
+				Delete(pList , pValNode->sKey , Compare );
+				Insert(pList , pValNode , Compare  , 0 );
 				return 0 ;
 			}
 		}
