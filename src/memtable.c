@@ -15,7 +15,7 @@ int memtable_set(StMemTable *pstTab , StValNode *pNode)
 
 StValNode * memtable_find(StMemTable *pstTab , char *sKey)
 {
-        StNode *pNode = Find(pstTab->pList , sKey , NULL , 0 , pstTab->funcCompare );
+    StNode *pNode = Find(pstTab->pList , sKey , NULL , 0 , pstTab->funcCompare );
 	if(pNode != NULL)
 	{
 	     	return &(pNode->stValNode) ;

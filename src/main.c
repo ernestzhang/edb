@@ -3,13 +3,22 @@
 #include <stdlib.h>
 #include "appendlog.h"
 #define LOG_FILE "./test.dat"
+
+#define MAX_MERGE_CNT 100000
 int main()
 {	
     int i ;
 	StLogFile stLog ;
     StListNode *pNode ;
     int iSize ;
-#if 1
+	
+	
+	
+	for(i = 0 ; i < MAX_MERGE_CNT ; ++i)
+	{
+			
+	}
+#if 0
     char *sKey[]={"11111111ernestzhang111111111111111111111111111111111111111111111111111" , "hadesmo" , "ivinlinsssssssssssssss" , "frankqian" , "stevenfu" , "ss", "sssssfsfsdf"};
     char *sVal[]={"1111111from wuhan...lllllllllll2b7777777777777777778" ,"from guangxi baizu.......hello world" , "FuJian boydddddssssssssssssssssdddddddddddddddddddssssssssssssssssdddd9" ,"nossssssssss", "enssss.....i don't know", "bbbbbbbb" , "ccccccccccccdddddddddddd7"};
     int iCr = CreateLogFile(LOG_FILE , &stLog);
@@ -31,7 +40,7 @@ int main()
     }
     AppendLog(&stLog ,1);
     DestroyFile(&stLog);
-#endif
+
     
     {
         GetLogData(&stLog ,LOG_FILE);
@@ -52,5 +61,6 @@ int main()
     
         DestroyFile(&stLog);
     }
+#endif
 	return 0;
 }
