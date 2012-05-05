@@ -8,20 +8,11 @@
 
 #ifndef __APPENDLOG_H_
 #define __APPENDLOG_H_
-#define BLOCK_SIZE 32
-//(32*1024)
-#define MAX_NODE_SIZE (1024 * 1024)
-enum{
-   ERROR_CREATE_FILE_ERROR = -1000,
-   ERROR_WRITE_FILE_ERROR ,
-   ERROR_TOO_LARGE_NODE ,
-   ERROR_OPEN_LOG_FILE ,
-   ERROR_FSTAT_LOG_FILE,
-   ERROR_READ_LOG_FILE,
-   ERROR_LOG_FORMAT ,
-    ERROR_CREATE_NEW_NODE,
-    ERROR_ALLOC_TEMP_MEM ,
-};
+#include "ekv_error.h"
+#include "ekv_comm.h"
+
+
+
 
 enum{
     FULL=1 ,
@@ -68,9 +59,9 @@ typedef struct _StLogFile
 }StLogFile;
 int CreateLogFile(const char *sFile , StLogFile *pLogFile);
 long ReadN(int iFd , char *cBuf ,  long lSize);
-int WriteN(int iFd , char *cBuf , unsigned long uiSize , unsigned int *uiTotal);
+
 int AppendLog(StLogFile *pLogFile , int iFlush);
-unsigned int GenCheckSum(void *pData , unsigned long uiSize);
+
 void PackKvNode(char *pBuf , StLogNode *pNode);
 void PackLogData(StLogFile *pLogFile , char *pData , unsigned long uiSize , char cType);
 int AppendRecord(StLogFile *pLogFile , StLogNode*pNode);
