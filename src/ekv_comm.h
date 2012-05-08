@@ -6,5 +6,5 @@
 
 unsigned int GenCheckSum(void *pData , unsigned long uiSize);
 int WriteN(int iFd , char *cBuf , unsigned long uiSize , unsigned int *uiTotal);
-
+long ReadN(int iFd , char *cBuf ,  long lSize);
 #endif
