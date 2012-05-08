@@ -23,3 +23,23 @@ int WriteN(int iFd , char *cBuf , unsigned long uiSize , unsigned int *uiTotal)
     }
     return 0 ;
 }
+
+long ReadN(int iFd , char *cBuf ,  long lSize)
+{
+        long lTotal = 0 ;
+        long iRead ;
+        while(lTotal < lSize)
+        {
+                iRead = read(iFd , cBuf + lTotal  , lSize - lTotal);
+                if(iRead < 0)
+                {
+                        return ERROR_READ_LOG_FILE ;
+                }
+                else
+                {
+                         lTotal += iRead ;
+                }
+        }
+        return lTotal ;
+}
+

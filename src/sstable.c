@@ -1,7 +1,10 @@
+#include "memtable.h"
 #include "sstable.h"
 #include "ekv_error.h"
-
-int StSStableLevel_Init(StSStableLevel & pstTableLevel)
+#include "skiplist.h"
+#include "ekv_comm.h"
+ #include <unistd.h>
+int StSStableLevel_Init(StSStableLevel * pstTableLevel)
 {
 	pstTableLevel->uiCurTableOf0Level = 0 ;
 	memset(pstTableLevel->sstable , 0 , sizeof(pstTableLevel->sstable));
@@ -20,13 +23,14 @@ int SSTable_Init(StSStable * pstSSTable , unsigned short usLevelID , unsigned in
 int SSTable_DumpOneSSTable(StSStable * pstSSTable , StMemTable *pstMemTable)
 {
 		int iRet = 0 ;
+		int iWr ;
+		unsigned int uiTotal ;
 		int iFd = open(pstSSTable->cFileName , O_CREAT|O_EXCL|O_RDWR , 0666);
 		if(iFd == -1)
 			return ERROR_OPEN_SSTABLE_ERROR_FOR_DUMP ;
 		else
 		{
 			//遍历memtable
-			int iCnt = 0 ;
 			StNode *pNode ;
 			if(pstMemTable->pList->pstHead[0] == NULL || pstMemTable->pList->pstHead[0]->pNext == NULL)
 			{
@@ -38,12 +42,12 @@ int SSTable_DumpOneSSTable(StSStable * pstSSTable , StMemTable *pstMemTable)
 				unsigned int uiIndexSize = 0 ;
 				char *pWrBlock = (char *)malloc(MAX_NODE_SIZE  + BLOCK_SIZE);
 				char *pIndex =(char *)malloc(sizeof(StIndexHead) * pstMemTable->pList->iTotCnt);
-				memcpy(pstSSTable->stIndex.cMinKey , pstMemTable->pList->pstHead[0]->pNext->sKey , pstMemTable->pList->pstHead[0]->pNext->usKeyLen);
-				memcpy(pstSSTable->stIndex.cMaxKey , pstMemTable->pList->pstHead[0]->pNext->sKey , pstMemTable->pList->pstHead[0]->pNext->usKeyLen);			
+				memcpy(pstSSTable->stIndex.cMinKey , pstMemTable->pList->pstHead[0]->pNext->stValNode.sKey , pstMemTable->pList->pstHead[0]->pNext->stValNode.uiKeySize);
+				memcpy(pstSSTable->stIndex.cMaxKey , pstMemTable->pList->pstHead[0]->pNext->stValNode.sKey , pstMemTable->pList->pstHead[0]->pNext->stValNode.uiKeySize);			
 				
 				while((pNode=pstMemTable->pList->pstHead[0]->pNext) != NULL)
 				{
-					int iWr = 0 ;
+					iWr = 0 ;
 					unsigned int uiTotal = 0 ;
 					unsigned int uiOffset = 0 ;
 					unsigned int uiKvLen = 0 ;
@@ -61,10 +65,11 @@ int SSTable_DumpOneSSTable(StSStable * pstSSTable , StMemTable *pstMemTable)
 					
 
 					//把要dump到文件的索引保存到内存pIndex
-					(unsigned int *)(pIndex + uiIndexSize)= pValNode->uiKeySize ;
+					*((unsigned int *)(pIndex + uiIndexSize))= pValNode->uiKeySize ;
 					memcpy(pIndex + uiIndexSize + sizeof(int) , pValNode->sKey , pValNode->uiKeySize) ;
-					(unsigned int *)(pIndex + uiIndexSize + sizeof(int) +  pValNode->uiKeySize) = pstSSTable->uiFileSize + uiWrBlockSize ;
-					uiIndexSize += (pValNode->uiKeySize + sizeof(int)*2) ;
+					*((unsigned int *)(pIndex + uiIndexSize + sizeof(int) +  pValNode->uiKeySize)) = pstSSTable->uiFileSize + uiWrBlockSize ;
+					*((unsigned int *)(pIndex + uiIndexSize + sizeof(int) +  pValNode->uiKeySize + sizeof(int))) = uiKvLen ;  
+					uiIndexSize += (pValNode->uiKeySize + sizeof(int)* 3 ) ;
 
 					//保存该sstable文件的下界
 					if(pstMemTable->funcCompare(pValNode->sKey , pstSSTable->stIndex.cMinKey) < 0)
@@ -151,11 +156,11 @@ int SSTable_DumpOneSSTable(StSStable * pstSSTable , StMemTable *pstMemTable)
 							pstSSTable->stIndex.uiCrc32 = GenCheckSum((char *)&pstSSTable->stIndex , sizeof(StSSTIndex)-sizeof(int));
 							if(iWr == 0)
 							{
-								iWr = WriteN(iFd , &pstSSTable->stIndex , sizeof(StSSTIndex) , &uiTotal) ;
+								iWr = WriteN(iFd , (char *)&pstSSTable->stIndex , sizeof(StSSTIndex) , &uiTotal) ;
 								if(iWr == 0)
 								{
 									pstSSTable->uiFileSize += sizeof(StSSTIndex) ;
-									pstSSTable->
+									//pstSSTable->
 								}
 								else
 								{
@@ -170,7 +175,7 @@ int SSTable_DumpOneSSTable(StSStable * pstSSTable , StMemTable *pstMemTable)
 				}
 				
 				free(pWrBlock) ;
-				free(pIndex)
+				free(pIndex);
 
 			}
 			close(iFd);
@@ -185,24 +190,75 @@ int SSTable_Dump0Level(StSStableLevel *pstTableLevel , StMemTable *pstMemTable)
 	SSTable_Init(pstSSTable , 0 , pstTableLevel->uiCurTableOf0Level);
 	if(SSTable_DumpOneSSTable(pstSSTable , pstMemTable) == 0)
 	{
-		if(++pstTableLevel->uiCurTableOf0Level ==  0_LEVEL_SIZE)
+		if(++pstTableLevel->uiCurTableOf0Level ==  _0_LEVEL_SIZE)
 		{
 			//start merging 0 level 
 		}
 	}
+	return 0 ;
 }
 
 int SSTable_Load(StSStableMem *pTableMem , char *sFile)
 {
-	int iRet = 0 ;
 	int iFd = open(sFile , O_CREAT|O_RDONLY , 0666);
 	if(iFd == -1)
 		return ERROR_OPEN_SSTABLE_ERROR_FOR_DUMP ;
 	else
 	{
-
-		lseek(iFd , 0 , SEEK_END - sizeof(StSSTIndex));
+		char *pIndex;
+		long iRd ;
+		StSSTIndex stMetaIndex ;
+		struct stat _fst ;
+		memset(&_fst  , 0 , sizeof(_fst));
+       		if(0 != fstat(iFd , &_fst))
+		{
+			close(iFd);	
+			return ERROR_STAT_SSTABLE_FILE ;	
+		}
+		lseek(iFd , _fst.st_size - sizeof(StSSTIndex) , SEEK_SET);
+		iRd = ReadN(iFd , (char *)&stMetaIndex , sizeof(stMetaIndex) );	
+		if(iRd != sizeof(stMetaIndex))
+		{
+			close(iFd);
+			return ERROR_READ_SSTABLE_FILE ;
+		}
+		lseek(iFd , _fst.st_size - sizeof(StSSTIndex) - stMetaIndex.uiIndexSize , SEEK_SET);
+		pIndex = malloc(stMetaIndex.uiIndexSize);
+		iRd = ReadN(iFd , pIndex , stMetaIndex.uiIndexSize );
+		if(iRd != stMetaIndex.uiIndexSize)
+		{
+			free(pIndex);
+			close(iFd);
+			return ERROR_READ_SSTABLE_FILE ;
+		}
+		else
+		{
+			unsigned int uiCurPos = 0 ;
+			pTableMem->pIndex = malloc(sizeof(char *) * stMetaIndex.uiIndexSize) ;
+			while(uiCurPos + sizeof(int) < stMetaIndex.uiIndexSize)
+			{
+				unsigned int uiKeySize =  *((unsigned int *)(pIndex+uiCurPos));
+				unsigned int uiNodeSize = uiKeySize + 3 *sizeof(int) ;
+				if(uiCurPos + uiNodeSize <= stMetaIndex.uiIndexSize)
+				{
+					char *pNode = malloc(uiNodeSize);
+					memcpy(pNode , pIndex + uiCurPos , uiNodeSize);	
+					(pTableMem->pIndex)[pTableMem->uiNodeNum] = pNode ;
+					uiCurPos += uiNodeSize ;
+					++pTableMem->uiNodeNum ;
+				}
+				else
+				{
+					free(pIndex);
+					free(pTabMem->pIndex);
+					close(iFd);
+					return ERROR_INDEX_FILE ;
+				}				
+			}	
+		}
+		free(pIndex);
 	}
-	close(iFd);
+	pTableMem->iFd = iFd ;
+	return 0;
 }
 
