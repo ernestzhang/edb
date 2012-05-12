@@ -24,7 +24,7 @@ typedef struct _SkipList
 	int		iSearchTm   ;
 }SkipList ;
 
-typedef int (*SkipList_func_equal)(char *p1 , char *p2)  ;
+typedef int (*SkipList_func_equal)(char *p1 , char  *p2)  ;
 
 StNode * Find(SkipList*pList , char *sKey , StNode *pPath[], int iDel , SkipList_func_equal Compare) ;
 int Insert(SkipList*pList , StValNode *pValNode , SkipList_func_equal Compare , int iRep) ;

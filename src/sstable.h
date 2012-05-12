@@ -7,9 +7,9 @@
 #include <sys/stat.h>
 #include <errno.h>
 
-#define MAX_KEY_SIZE 256
+#define MAX_KEY_SIZE 1024
 #define _0_LEVEL_SIZE 4
-#define SSTABLE_FILE_NAME "sst_%d_%d"
+#define SSTABLE_FILE_NAME "sst_%d_%d.dat"
 
 #if 0
 typedef struct _StTabNode
@@ -60,4 +60,12 @@ typedef struct _StSStableMem
 	char **pIndex ;
 }StSStableMem;
 
+typedef int (*IndexCompareFuncDef)(const void *p1 , const void *p2);
+int StSStableLevel_Init(StSStableLevel * pstTableLevel);
+int SSTable_Init(StSStable * pstSSTable , unsigned short usLevelID , unsigned int uiFileID);
+int SSTable_DumpOneSSTable(StSStable * pstSSTable , StMemTable *pstMemTable);
+int SSTable_Dump0Level(StSStableLevel *pstTableLevel , StMemTable *pstMemTable);
+int SSTable_Load(StSStableMem *pTableMem , char *sFile);
+int IndexCompareFunc(const void *p1 , const void *p2);
+int  SSTable_Find(StSStableMem *pTableMem , char *sKey , unsigned int uiKeySize , void *pData , unsigned int* uiValSize);
 #endif
