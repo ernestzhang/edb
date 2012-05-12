@@ -137,24 +137,7 @@ int AppendRecord(StLogFile *pLogFile , StLogNode*pNode)
 
 }
 
-long ReadN(int iFd , char *cBuf ,  long lSize)
-{
-	long lTotal = 0 ;
-	long iRead ;
-	while(lTotal < lSize)
-	{
-		iRead = read(iFd , cBuf + lTotal  , lSize - lTotal);
-		if(iRead < 0)
-		{
-			return ERROR_READ_LOG_FILE ;
-		}
-		else
-		{
-			 lTotal += iRead ;
-		}
-	}
-	return lTotal ;
-}
+
 
 int IsUnValidDataRecord(StLogRecordNode *pNode , unsigned long ulSize)
 {
@@ -248,7 +231,7 @@ int ProcessLogFile(StLogFile*pLogFile)
             if(pLogFile->ulTmpBufSize > 0 )
                 return  ERROR_LOG_FORMAT ;
             ParseLogData(pLogFile , pNode + 1 , pNode->usRecordSize , pNode->cType);
-            printf("full:%d\n" , pNode->usRecordSize + sizeof(StLogRecordNode));
+            //printf("full:%d\n" , pNode->usRecordSize + sizeof(StLogRecordNode));
         }
         else if(pNode->cType == FIRST)
         {
@@ -257,7 +240,7 @@ int ProcessLogFile(StLogFile*pLogFile)
             memcpy(pLogFile->pTmpNodeBuf , pNode + 1 , pNode->usRecordSize);
             pLogFile->ulTmpBufSize += pNode->usRecordSize ;
             
-            printf("first:%d\n" , pNode->usRecordSize + sizeof(StLogRecordNode));
+            //printf("first:%d\n" , pNode->usRecordSize + sizeof(StLogRecordNode));
         }
         else if(pNode->cType == MIDDLE)
         { 
@@ -266,7 +249,7 @@ int ProcessLogFile(StLogFile*pLogFile)
             memcpy(pLogFile->pTmpNodeBuf + pLogFile->ulTmpBufSize , pNode + 1 , pNode->usRecordSize);
             pLogFile->ulTmpBufSize += pNode->usRecordSize ;
             
-            printf("middle:%d\n" , pNode->usRecordSize + sizeof(StLogRecordNode));
+            //printf("middle:%d\n" , pNode->usRecordSize + sizeof(StLogRecordNode));
         }
         else if(pNode->cType == LAST)
         {
@@ -275,7 +258,7 @@ int ProcessLogFile(StLogFile*pLogFile)
             memcpy(pLogFile->pTmpNodeBuf + pLogFile->ulTmpBufSize , pNode + 1 , pNode->usRecordSize);
             pLogFile->ulTmpBufSize += pNode->usRecordSize ;
             ParseLogData(pLogFile , pLogFile->pTmpNodeBuf , pLogFile->ulTmpBufSize , pNode->cType);
-            printf("last:%d\n" , pNode->usRecordSize + sizeof(StLogRecordNode));
+            //printf("last:%d\n" , pNode->usRecordSize + sizeof(StLogRecordNode));
         }
         ulCurSize += pNode->usRecordSize + sizeof(StLogRecordNode) ;
         //如果剩余的空间不足一个包头，则为填充值

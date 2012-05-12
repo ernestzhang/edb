@@ -44,8 +44,8 @@ int SSTable_DumpOneSSTable(StSStable * pstSSTable , StMemTable *pstMemTable)
 				char *pIndex =(char *)malloc(sizeof(StIndexHead) * pstMemTable->pList->iTotCnt);
 				memcpy(pstSSTable->stIndex.cMinKey , pstMemTable->pList->pstHead[0]->pNext->stValNode.sKey , pstMemTable->pList->pstHead[0]->pNext->stValNode.uiKeySize);
 				memcpy(pstSSTable->stIndex.cMaxKey , pstMemTable->pList->pstHead[0]->pNext->stValNode.sKey , pstMemTable->pList->pstHead[0]->pNext->stValNode.uiKeySize);			
-				
-				while((pNode=pstMemTable->pList->pstHead[0]->pNext) != NULL)
+				pNode = pstMemTable->pList->pstHead[0]->pNext ;	
+				while(pNode != NULL)
 				{
 					iWr = 0 ;
 					unsigned int uiTotal = 0 ;
@@ -233,8 +233,10 @@ int SSTable_Load(StSStableMem *pTableMem , char *sFile)
 		}
 		else
 		{
+			unsigned int uiCurCnt = 0 ;
 			unsigned int uiCurPos = 0 ;
-			pTableMem->pIndex = malloc(sizeof(char *) * stMetaIndex.uiIndexSize) ;
+			pTableMem->pIndex = malloc(sizeof(char *) * stMetaIndex.uiIndexCnt) ;
+			
 			while(uiCurPos + sizeof(int) < stMetaIndex.uiIndexSize)
 			{
 				unsigned int uiKeySize =  *((unsigned int *)(pIndex+uiCurPos));
@@ -246,11 +248,13 @@ int SSTable_Load(StSStableMem *pTableMem , char *sFile)
 					(pTableMem->pIndex)[pTableMem->uiNodeNum] = pNode ;
 					uiCurPos += uiNodeSize ;
 					++pTableMem->uiNodeNum ;
+					++uiCurCnt ;
 				}
 				else
-				{
+				{	
+					printf("cur cnt:%d\n" , uiCurCnt);
 					free(pIndex);
-					free(pTabMem->pIndex);
+					free(pTableMem->pIndex);
 					close(iFd);
 					return ERROR_INDEX_FILE ;
 				}				
@@ -300,12 +304,12 @@ int  SSTable_Find(StSStableMem *pTableMem , char *sKey , unsigned int uiKeySize 
 	uiOffset =  *( (unsigned int *)((char *)pNode + uiKeySize + sizeof(int)) ) ; 
 	uiNodeSize =  *( (unsigned int *)((char *)pNode + uiKeySize + sizeof(int) * 2)) ; 
 	
-	pData = (char *)malloc(uiNodeSize);
-	iRd = ReadN(pTableMem->iFd , pData , uiNodeSize);
+	*pData = malloc(uiNodeSize);
+	iRd = ReadN(pTableMem->iFd , *pData , uiNodeSize);
 	if(iRd != uiNodeSize)
 	{
 		return ERROR_READ_SSTABLE_FILE ;
 	}
-	*uiValLen = uiNodeSize ;
+	*uiValSize = uiNodeSize ;
 	return 0 ;
 }
