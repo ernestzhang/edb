@@ -1,6 +1,13 @@
 #ifndef __EKV_COMM_H_
 #define __EKV_COMM_H_
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/uio.h>
+#include <unistd.h>
+#include <errno.h>
+#include <string.h>
+#include "ekv_error.h"
 #define BLOCK_SIZE (32*1024)
 #define MAX_NODE_SIZE (1024 * 1024)
 

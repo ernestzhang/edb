@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include "memtable.h"
 
 #define MAX_KEY_SIZE 1024
 #define _0_LEVEL_SIZE 4
@@ -67,5 +68,8 @@ int SSTable_DumpOneSSTable(StSStable * pstSSTable , StMemTable *pstMemTable);
 int SSTable_Dump0Level(StSStableLevel *pstTableLevel , StMemTable *pstMemTable);
 int SSTable_Load(StSStableMem *pTableMem , char *sFile);
 int IndexCompareFunc(const void *p1 , const void *p2);
-int  SSTable_Find(StSStableMem *pTableMem , char *sKey , unsigned int uiKeySize , void *pData , unsigned int* uiValSize);
+
+
+int  SSTable_Find(StSStableMem *pTableMem , char *sKey , unsigned int uiKeySize , void **pData , unsigned int* uiValSize);
+
 #endif
