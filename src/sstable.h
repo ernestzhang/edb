@@ -7,7 +7,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include "memtable.h"
-
+#include "ekv_comm.h"
 #define MAX_KEY_SIZE 1024
 #define _0_LEVEL_SIZE 4
 #define SSTABLE_FILE_NAME "sst_%d_%d.dat"
@@ -59,6 +59,7 @@ typedef struct _StSStableMem
 	unsigned int uiNodeNum ;
 	int iFd ;
 	char **pIndex ;
+	int iFileSize ;
 }StSStableMem;
 
 typedef int (*IndexCompareFuncDef)(const void *p1 , const void *p2);
