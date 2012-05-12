@@ -59,8 +59,8 @@ int SSTable_DumpOneSSTable(StSStable * pstSSTable , StMemTable *pstMemTable)
 					memcpy(pKv + uiOffset , pValNode->sKey , pValNode->uiKeySize); uiOffset += pValNode->uiKeySize ;
 					*((unsigned int *)(pKv + uiOffset )) = pValNode->uiValSize ; uiOffset += sizeof(int);
 					memcpy(pKv + uiOffset , pValNode->sVal , pValNode->uiValSize); uiOffset += pValNode->uiValSize ;
-					*((unsigned int *)pKv) = GenCheckSum(pKv+sizeof(int) , pValNode->uiKeySize + pValNode->uiValSize + sizeof(int) * 2);
-					uiKvLen = pValNode->uiKeySize + pValNode->uiValSize + sizeof(int) * 3 ;
+				//	*((unsigned int *)pKv) = GenCheckSum(pKv+sizeof(int) , pValNode->uiKeySize + pValNode->uiValSize + sizeof(int) * 2);
+					uiKvLen = pValNode->uiKeySize + pValNode->uiValSize + sizeof(int) * 2 ;
 					
 					
 
@@ -91,6 +91,7 @@ int SSTable_DumpOneSSTable(StSStable * pstSSTable , StMemTable *pstMemTable)
 						if(iWr == 0)
 						{
 							uiWrBlockSize -= BLOCK_SIZE ;
+							memmove(pWrBlock , pWrBlock + BLOCK_SIZE , uiWrBlockSize);
 							pstSSTable->uiFileSize += BLOCK_SIZE ;
 						}
 						else
@@ -121,14 +122,16 @@ int SSTable_DumpOneSSTable(StSStable * pstSSTable , StMemTable *pstMemTable)
 					//write index and meta data
 					if(iWr == 0)
 					{
+						unsigned int uiCurWr = 0 ;
 						pstSSTable->stIndex.uiIndexSize = uiIndexSize ;
 						pstSSTable->stIndex.uiIndexCnt = pstMemTable->pList->iTotCnt ;
 						while(uiIndexSize >= BLOCK_SIZE)
 						{
-							iWr = WriteN(iFd , pIndex , BLOCK_SIZE , &uiTotal) ;
+							iWr = WriteN(iFd , pIndex + uiCurWr , BLOCK_SIZE , &uiTotal) ;
 							if(iWr == 0)
 							{
 								uiIndexSize -= BLOCK_SIZE ;
+								uiCurWr += BLOCK_SIZE ;	
 								pstSSTable->uiFileSize += BLOCK_SIZE ;
 							}
 							else
@@ -143,7 +146,7 @@ int SSTable_DumpOneSSTable(StSStable * pstSSTable , StMemTable *pstMemTable)
 						{
 							if(uiIndexSize > 0)
 							{
-								iWr = WriteN(iFd , pIndex , uiIndexSize , &uiTotal) ;
+								iWr = WriteN(iFd , pIndex + uiCurWr , uiIndexSize , &uiTotal) ;
 								if(iWr == 0)
 									pstSSTable->uiFileSize += uiIndexSize ;
 								else
@@ -241,6 +244,10 @@ int SSTable_Load(StSStableMem *pTableMem , char *sFile)
 			{
 				unsigned int uiKeySize =  *((unsigned int *)(pIndex+uiCurPos));
 				unsigned int uiNodeSize = uiKeySize + 3 *sizeof(int) ;
+				if(uiNodeSize > 64 )
+				{
+					printf("cur node:%d\n", uiNodeSize);
+				}
 				if(uiCurPos + uiNodeSize <= stMetaIndex.uiIndexSize)
 				{
 					char *pNode = malloc(uiNodeSize);
@@ -252,7 +259,6 @@ int SSTable_Load(StSStableMem *pTableMem , char *sFile)
 				}
 				else
 				{	
-					printf("cur cnt:%d\n" , uiCurCnt);
 					free(pIndex);
 					free(pTableMem->pIndex);
 					close(iFd);
@@ -261,12 +267,13 @@ int SSTable_Load(StSStableMem *pTableMem , char *sFile)
 			}	
 		}
 		free(pIndex);
+		 pTableMem->iFileSize = _fst.st_size ;
 	}
 	pTableMem->iFd = iFd ;
 	return 0;
 }
 
-int IndexCompareFunc(const void *p1 , const void *p2)
+int BSearchCompareFunc1(void *p1 , void *p2)
 {
 	unsigned int uiKeySize1 = *((unsigned int *)p1);
 	unsigned int uiKeySize2 = *((unsigned int *)p2);
@@ -282,28 +289,35 @@ int IndexCompareFunc(const void *p1 , const void *p2)
 	}
 	else
 		return iRet ;
+	//return strcmp((char *)p1 + sizeof(int) , (char *)p2 + sizeof(int));
 }
 int  SSTable_Find(StSStableMem *pTableMem , char *sKey , unsigned int uiKeySize , void **pData , unsigned int* uiValSize)
 {
-	char cIndex[MAX_KEY_SIZE + sizeof(int)];
+	char cIndex[MAX_KEY_SIZE + sizeof(int)]= {0};
 	int iRd ;
 	unsigned int uiOffset  ;
 	unsigned int uiNodeSize ;
 	void *pNode ;
-	
+	int iPos ;
+	int iRet ;
 	*((unsigned int *)cIndex) = uiKeySize ;
 	memcpy(cIndex + sizeof(int) , sKey , uiKeySize ) ;
 
-	pNode = bsearch(cIndex , pTableMem->pIndex , pTableMem->uiNodeNum , sizeof(char *) ,  IndexCompareFunc);
-	if(pNode == NULL)
+	iRet = BSearch((void **)pTableMem->pIndex , pTableMem->uiNodeNum , cIndex  ,  BSearchCompareFunc1 , &iPos);
+	if(iRet < 0)
 	{
 		*pData = NULL ;
 		return 0 ;
 	}
-	
+	pNode = (void *)pTableMem->pIndex[iPos];	
 	uiOffset =  *( (unsigned int *)((char *)pNode + uiKeySize + sizeof(int)) ) ; 
 	uiNodeSize =  *( (unsigned int *)((char *)pNode + uiKeySize + sizeof(int) * 2)) ; 
-	
+	printf("node size:%u , offset:%u file size:%d\n" , uiNodeSize , uiOffset , pTableMem->iFileSize);	
+	if(uiOffset + uiNodeSize> (unsigned int )pTableMem->iFileSize)
+	{
+		return ERROR_READ_SSTABLE_FILE ;	
+	}
+	lseek(pTableMem->iFd ,uiOffset ,SEEK_SET);
 	*pData = malloc(uiNodeSize);
 	iRd = ReadN(pTableMem->iFd , *pData , uiNodeSize);
 	if(iRd != uiNodeSize)

@@ -43,3 +43,42 @@ long ReadN(int iFd , char *cBuf ,  long lSize)
         return lTotal ;
 }
 
+
+int BSearch(void **pArr , unsigned int  uiSize , void *pKey , BSearchCompareFunc compareFunc  , int *iPos)
+{
+        unsigned int uiLow = 0 ;
+        unsigned int uiHigh = uiSize ;
+        while(uiLow < uiHigh)
+        {
+                unsigned int uiMid = (uiLow + uiHigh) / 2 ;
+                int iRet = compareFunc(pKey , pArr[uiMid]);
+                if(iRet == 0)
+                {
+                        if(iPos != NULL)
+                                *iPos = uiMid ;
+                        return  0;
+                }
+                else if(iRet < 0 )
+                {
+                        if(uiMid == uiHigh )
+                                break ;
+                        uiHigh = uiMid ;
+                }
+                else
+                {
+                        if(uiMid == uiLow)
+                                break ;
+                        uiLow = uiMid ;
+                }
+        }
+        if(iPos != NULL)
+        {
+                *iPos = uiLow ;
+                if(*iPos == 0 && compareFunc(pKey , pArr[uiLow]) < 0)
+                {
+                        *iPos = -1 ;
+                }
+        }
+        return -1 ;
+}
+
