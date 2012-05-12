@@ -26,7 +26,7 @@ StValNode * memtable_find(StMemTable *pstTab , char *sKey)
 	}
 }
 
-int memtable_del(StMemTable *pstTab ,char *sKey  )
+int memtable_del(StMemTable *pstTab ,char *sKey)
 {
         int iRet = Delete(pstTab->pList , sKey , pstTab->funcCompare);
         return iRet ;

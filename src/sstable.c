@@ -54,7 +54,7 @@ int SSTable_DumpOneSSTable(StSStable * pstSSTable , StMemTable *pstMemTable)
 					StValNode *pValNode =&(pNode->stValNode) ;		
 					char *pKv = pWrBlock + uiWrBlockSize ;
 					
-					uiOffset = sizeof(int);
+					
 					*((unsigned int *)(pKv + uiOffset )) = pValNode->uiKeySize ; uiOffset += sizeof(int);
 					memcpy(pKv + uiOffset , pValNode->sKey , pValNode->uiKeySize); uiOffset += pValNode->uiKeySize ;
 					*((unsigned int *)(pKv + uiOffset )) = pValNode->uiValSize ; uiOffset += sizeof(int);
@@ -210,7 +210,7 @@ int SSTable_Load(StSStableMem *pTableMem , char *sFile)
 		StSSTIndex stMetaIndex ;
 		struct stat _fst ;
 		memset(&_fst  , 0 , sizeof(_fst));
-       		if(0 != fstat(iFd , &_fst))
+       	if(0 != fstat(iFd , &_fst))
 		{
 			close(iFd);	
 			return ERROR_STAT_SSTABLE_FILE ;	
@@ -262,3 +262,50 @@ int SSTable_Load(StSStableMem *pTableMem , char *sFile)
 	return 0;
 }
 
+int IndexCompareFunc(const void *p1 , const void *p2)
+{
+	unsigned int uiKeySize1 = *((unsigned int *)p1);
+	unsigned int uiKeySize2 = *((unsigned int *)p2);
+	int iRet = memcmp(p1 + sizeof(int) , p2 + sizeof(int) , uiKeySize1 > uiKeySize2 ? uiKeySize2: uiKeySize1) ;
+	if(iRet == 0)
+	{
+		if(uiKeySize1 > uiKeySize2)
+			return 1 ;
+		else if(uiKeySize1 == uiKeySize2)
+ 			return 0 ;
+		else
+			return -1 ;
+	}
+	else
+		return iRet ;
+}
+int  SSTable_Find(StSStableMem *pTableMem , char *sKey , unsigned int uiKeySize , void **pData , unsigned int* uiValSize)
+{
+	char cIndex[MAX_KEY_SIZE + sizeof(int)];
+	int iRd ;
+	unsigned int uiOffset  ;
+	unsigned int uiNodeSize ;
+	void *pNode ;
+	
+	*((unsigned int *)cIndex) = uiKeySize ;
+	memcpy(cIndex + sizeof(int) , sKey , uiKeySize ) ;
+
+	pNode = bsearch(cIndex , pTableMem->pIndex , pTableMem->uiNodeNum , sizeof(char *) ,  IndexCompareFunc);
+	if(pNode == NULL)
+	{
+		*pData = NULL ;
+		return 0 ;
+	}
+	
+	uiOffset =  *( (unsigned int *)((char *)pNode + uiKeySize + sizeof(int)) ) ; 
+	uiNodeSize =  *( (unsigned int *)((char *)pNode + uiKeySize + sizeof(int) * 2)) ; 
+	
+	pData = (char *)malloc(uiNodeSize);
+	iRd = ReadN(pTableMem->iFd , pData , uiNodeSize);
+	if(iRd != uiNodeSize)
+	{
+		return ERROR_READ_SSTABLE_FILE ;
+	}
+	*uiValLen = uiNodeSize ;
+	return 0 ;
+}
